@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DIA Delivery Playbook — Learning Guide</title>
+    <meta
+      name="description"
+      content="Digital Integration Architecture Delivery Playbook — twelve sections in a learner-friendly layout aligned to the draft deck."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="app-header">
+      <div class="app-header__inner">
+        <span class="app-header__badge">Draft · Learning UI</span>
+        <h1>Digital Integration Architecture Delivery Playbook</h1>
+        <p class="app-header__sub">
+          Key sections across the DIA Delivery Lifecycle with overviews of each, supporting material, and example files to support. Expedite a programs delivery all in one place.
+        </p>
+        <p class="app-header__deck">
+          <a
+            class="app-header__deck-link"
+            href="https://pwc.sharepoint.com/:p:/r/teams/US-INT-ADVS-Enterprise-Application-Integration/Shared%20Documents/10.%20Large%20Scale%20Solution%20delivery/2.%20Delivery/Delivery%20Playbook/%5BDRAFT%5D%20DIA%20Delivery%20Playbook.pptx?d=w5cbc36da055d4fc9af36433a8a8d0b38&csf=1&web=1&e=dDRHTh"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Open <cite>[DRAFT] DIA Delivery Playbook.pptx</cite> on SharePoint</a>
+        </p>
+        <div class="gamify-hud" id="gamify-hud" aria-live="polite">
+          <div class="gamify-hud__xp">
+            <span class="gamify-hud__label">XP</span>
+            <strong id="gamify-xp">0</strong>
+          </div>
+          <div class="gamify-hud__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="gamify-bar">
+            <span id="gamify-bar-fill"></span>
+          </div>
+          <div class="gamify-hud__badges">
+            <span class="gamify-hud__label">Badges</span>
+            <strong id="gamify-badges">0</strong><span class="gamify-hud__of">/12</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+      <div class="view is-active" id="view-home">
+        <div class="home-intro">
+          <h2>Choose a section</h2>
+          <p>
+            Each card opens guided content, <strong>tailored for each phase</strong> where available,
+            repository shortcuts, and a
+            <strong>checkpoint quiz</strong> to earn XP and badges.
+          </p>
+        </div>
+        <div class="section-grid" id="section-grid" role="navigation" aria-label="Playbook sections"></div>
+      </div>
+      <div id="section-pages"></div>
+    </main>
+
+    <footer class="app-footer">
+      Based on &ldquo;[DRAFT] DIA Delivery Playbook&rdquo; · Colors from deck theme (PwC Office Colours) · Not an official PwC deliverable unless your firm approves it.
+    </footer>
+
+    <div id="quiz-modal" class="quiz-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="quiz-modal-title">
+      <div class="quiz-modal__backdrop" tabindex="-1"></div>
+      <div class="quiz-modal__panel">
+        <h2 id="quiz-modal-title" class="quiz-modal__heading"></h2>
+        <div id="quiz-modal-body" class="quiz-modal__body"></div>
+        <div id="quiz-modal-footer" class="quiz-modal__footer"></div>
+      </div>
+    </div>
+
+    <script src="bodies.js"></script>
+    <script src="deck-tables.js"></script>
+    <script src="gamify.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
