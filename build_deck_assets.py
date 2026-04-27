@@ -14,9 +14,9 @@ OUT = Path(__file__).resolve().parent / "deck-tables.js"
 # PowerPoint for the web (SharePoint). wdSlideIndex is 0-based (slide 1 → 0).
 PLAYBOOK_DECK_ONLINE_URL = (
     "https://pwc.sharepoint.com/:p:/r/teams/US-INT-ADVS-Enterprise-Application-Integration/"
-    "Shared%20Documents/10.%20Large%20Scale%20Solution%20delivery/2.%20Delivery/"
-    "Delivery%20Playbook/%5BDRAFT%5D%20DIA%20Delivery%20Playbook.pptx"
-    "?d=w5cbc36da055d4fc9af36433a8a8d0b38&csf=1&web=1&e=dDRHTh"
+    "_layouts/15/Doc.aspx?sourcedoc=%7B5CBC36DA-055D-4FC9-AF36-433A8A8D0B38%7D"
+    "&file=%5BDRAFT%5D%20DIA%20Delivery%20Playbook.pptx"
+    "&action=edit&mobileredirect=true"
 )
 
 

@@ -10,7 +10,7 @@ const SHAREPOINT_FOLDER_ROOT =
 
 /** SharePoint “open in browser” URL for the draft deck (also set in deck-tables.js). */
 const PLAYBOOK_DECK_URL_FALLBACK =
-  "https://pwc.sharepoint.com/:p:/r/teams/US-INT-ADVS-Enterprise-Application-Integration/Shared%20Documents/10.%20Large%20Scale%20Solution%20delivery/2.%20Delivery/Delivery%20Playbook/%5BDRAFT%5D%20DIA%20Delivery%20Playbook.pptx?d=w5cbc36da055d4fc9af36433a8a8d0b38&csf=1&web=1&e=dDRHTh";
+  "https://pwc.sharepoint.com/:p:/r/teams/US-INT-ADVS-Enterprise-Application-Integration/_layouts/15/Doc.aspx?sourcedoc=%7B5CBC36DA-055D-4FC9-AF36-433A8A8D0B38%7D&file=%5BDRAFT%5D%20DIA%20Delivery%20Playbook.pptx&action=edit&mobileredirect=true";
 
 function playbookDeckBaseUrl() {
   return window.PLAYBOOK_DECK_URL || PLAYBOOK_DECK_URL_FALLBACK;
@@ -298,6 +298,213 @@ const sections = [
   },
 ];
 
+const LEARNING_TRACKS = [
+  {
+    id: "all",
+    label: "Full Playbook",
+    shortLabel: "Full",
+    description: "A complete path through every DIA delivery topic.",
+  },
+  {
+    id: "pm",
+    label: "PM / Delivery Lead",
+    shortLabel: "PM",
+    description: "Governance, mobilization, cadence, reporting, and go-live control.",
+  },
+  {
+    id: "architecture",
+    label: "Architecture",
+    shortLabel: "Architecture",
+    description: "Operating model, technical readiness, design governance, and standards.",
+  },
+  {
+    id: "delivery",
+    label: "Delivery Team",
+    shortLabel: "Delivery",
+    description: "Build cadence, quality practices, release prep, and delivery tooling.",
+  },
+  {
+    id: "qa",
+    label: "QA / Testing",
+    shortLabel: "QA",
+    description: "Testing strategy, UAT readiness, quality gates, and defect flow.",
+  },
+  {
+    id: "release",
+    label: "Release / Readiness",
+    shortLabel: "Release",
+    description: "Release planning, business readiness, go-live, and hypercare.",
+  },
+];
+
+const SECTION_LMS_META = {
+  intro: {
+    duration: "8 min",
+    tracks: ["pm", "architecture", "delivery", "qa", "release"],
+  },
+  "operating-model": {
+    duration: "12 min",
+    tracks: ["pm", "architecture", "delivery", "release"],
+  },
+  mobilization: {
+    duration: "15 min",
+    tracks: ["pm", "architecture", "delivery", "qa"],
+  },
+  agile: {
+    duration: "14 min",
+    tracks: ["pm", "delivery", "architecture"],
+  },
+  testing: {
+    duration: "16 min",
+    tracks: ["qa", "delivery", "release"],
+  },
+  release: {
+    duration: "12 min",
+    tracks: ["release", "pm", "delivery"],
+  },
+  "business-readiness": {
+    duration: "10 min",
+    tracks: ["release", "pm"],
+  },
+  golive: {
+    duration: "10 min",
+    tracks: ["release", "pm", "qa"],
+  },
+  hypercare: {
+    duration: "9 min",
+    tracks: ["release", "pm", "delivery"],
+  },
+  reporting: {
+    duration: "8 min",
+    tracks: ["pm", "release"],
+  },
+  tooling: {
+    duration: "9 min",
+    tracks: ["delivery", "architecture", "qa"],
+  },
+  appendix: {
+    duration: "Optional",
+    tracks: ["architecture", "delivery", "qa"],
+  },
+};
+
+function sectionMeta(section) {
+  return SECTION_LMS_META[section.id] || { duration: "10 min", tracks: [] };
+}
+
+function getTrackById(trackId) {
+  return LEARNING_TRACKS.find((track) => track.id === trackId) || LEARNING_TRACKS[0];
+}
+
+function getActiveTrack() {
+  return window.DIA_GAMIFY ? window.DIA_GAMIFY.getActiveTrack() : "all";
+}
+
+function getProgressState() {
+  return window.DIA_GAMIFY
+    ? window.DIA_GAMIFY.load()
+    : {
+        xp: 0,
+        badges: [],
+        quiz: {},
+        openedSections: [],
+        completedSections: [],
+        activeTrack: "all",
+      };
+}
+
+function sectionMatchesTrack(section, trackId) {
+  if (trackId === "all") return true;
+  return sectionMeta(section).tracks.includes(trackId);
+}
+
+function sectionsForTrack(trackId) {
+  return sections.filter((section) => sectionMatchesTrack(section, trackId));
+}
+
+function sectionStatus(sectionId, state) {
+  const st = state || getProgressState();
+  const quiz = st.quiz && st.quiz[sectionId];
+  const completed =
+    Boolean(quiz && quiz.passed) ||
+    (Array.isArray(st.completedSections) && st.completedSections.includes(sectionId));
+  const opened =
+    completed ||
+    (Array.isArray(st.openedSections) && st.openedSections.includes(sectionId));
+
+  return {
+    completed,
+    opened,
+    score: quiz && typeof quiz.score === "number" ? quiz.score : null,
+    label: completed ? "Complete" : opened ? "In progress" : "Not started",
+    className: completed ? "is-complete" : opened ? "is-progress" : "is-new",
+  };
+}
+
+function progressForTrack(trackId, state) {
+  const path = sectionsForTrack(trackId);
+  const st = state || getProgressState();
+  const completed = path.filter((section) => sectionStatus(section.id, st).completed).length;
+  const opened = path.filter((section) => sectionStatus(section.id, st).opened).length;
+  const total = path.length || 1;
+  return {
+    path,
+    completed,
+    opened,
+    total,
+    percent: Math.round((completed / total) * 100),
+  };
+}
+
+function getSectionById(sectionId) {
+  return sections.find((section) => section.id === sectionId) || null;
+}
+
+function nextSectionForTrack(trackId, state) {
+  const st = state || getProgressState();
+  return (
+    sectionsForTrack(trackId).find((section) => !sectionStatus(section.id, st).completed) ||
+    null
+  );
+}
+
+function resumeSectionForTrack(trackId, state) {
+  const st = state || getProgressState();
+  const path = sectionsForTrack(trackId);
+  const last = getSectionById(st.lastSection);
+  if (last && path.some((section) => section.id === last.id)) {
+    return last;
+  }
+  return nextSectionForTrack(trackId, st) || path[0] || sections[0];
+}
+
+function adjacentSections(sectionId) {
+  const trackId = getActiveTrack();
+  let path = sectionsForTrack(trackId);
+  if (!path.some((section) => section.id === sectionId)) {
+    path = sections;
+  }
+  const idx = path.findIndex((section) => section.id === sectionId);
+  return {
+    previous: idx > 0 ? path[idx - 1] : null,
+    next: idx >= 0 && idx < path.length - 1 ? path[idx + 1] : null,
+  };
+}
+
+function formatActivityDate(ts) {
+  if (!ts) return "Not started";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(ts));
+  } catch {
+    return "Recently";
+  }
+}
+
 function renderRepo(repo) {
   if (!repo) return "";
   const linksHtml = repo.links
@@ -316,7 +523,7 @@ function renderRepo(repo) {
 }
 
 function escapeHtml(s) {
-  return s
+  return String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -348,7 +555,7 @@ function showView(viewId) {
     el.classList.toggle("is-active", el.id === `view-${viewId}`);
   });
   if (viewId === "home") {
-    history.replaceState(null, "", " ");
+    history.replaceState(null, "", `${location.pathname}${location.search}`);
   } else {
     history.replaceState(null, "", `#${viewId}`);
   }
@@ -356,22 +563,123 @@ function showView(viewId) {
   if (main) main.focus();
 }
 
+function buildDashboard() {
+  const host = document.getElementById("learner-dashboard");
+  if (!host) return;
+
+  const st = getProgressState();
+  const activeTrack = getActiveTrack();
+  const track = getTrackById(activeTrack);
+  const progress = progressForTrack(activeTrack, st);
+  const resume = resumeSectionForTrack(activeTrack, st);
+  const next = nextSectionForTrack(activeTrack, st);
+  const primary = next || resume;
+  const lastActivity = formatActivityDate(st.lastActivityAt);
+  const trackButtons = LEARNING_TRACKS.map((item) => {
+    const selected = item.id === activeTrack;
+    return `
+      <button type="button" class="path-toggle${selected ? " is-active" : ""}" data-track-id="${item.id}" aria-pressed="${selected}">
+        ${escapeHtml(item.shortLabel)}
+      </button>
+    `;
+  }).join("");
+  const pathSteps = progress.path
+    .map((section) => {
+      const status = sectionStatus(section.id, st);
+      return `
+        <li>
+          <button type="button" class="path-step ${status.className}" data-dashboard-section="${section.id}">
+            <span class="path-step__marker">${section.num}</span>
+            <span class="path-step__text">${escapeHtml(section.title)}</span>
+          </button>
+        </li>
+      `;
+    })
+    .join("");
+
+  host.innerHTML = `
+    <div class="learner-dashboard__summary">
+      <div class="learner-dashboard__copy">
+        <p class="dashboard-eyebrow">LMS-lite dashboard</p>
+        <h2>${escapeHtml(track.label)}</h2>
+        <p>${escapeHtml(track.description)}</p>
+      </div>
+      <div class="dashboard-meter" role="img" aria-label="${progress.percent}% complete" style="--dashboard-angle: ${Math.round(progress.percent * 3.6)}deg">
+        <strong>${progress.percent}%</strong>
+        <span>complete</span>
+      </div>
+    </div>
+    <div class="dashboard-controls">
+      <div class="dashboard-actions">
+        <button type="button" class="dashboard-primary" data-dashboard-section="${primary ? primary.id : "intro"}">
+          ${next ? "Continue required path" : "Review path"}
+        </button>
+        <button type="button" class="dashboard-secondary" data-dashboard-section="${resume ? resume.id : "intro"}">
+          Resume last module
+        </button>
+      </div>
+      <div class="dashboard-stats" aria-label="Learning progress">
+        <div><span>Modules</span><strong>${progress.completed}/${progress.total}</strong></div>
+        <div><span>Started</span><strong>${progress.opened}</strong></div>
+        <div><span>Badges</span><strong>${st.badges.length}/12</strong></div>
+        <div><span>Last activity</span><strong>${escapeHtml(lastActivity)}</strong></div>
+      </div>
+    </div>
+    <div class="path-selector">
+      <div>
+        <p class="path-selector__label">Learning path</p>
+        <div class="path-selector__buttons" role="group" aria-label="Choose learning path">
+          ${trackButtons}
+        </div>
+      </div>
+      <ol class="path-steps" aria-label="${escapeHtml(track.label)} modules">
+        ${pathSteps}
+      </ol>
+    </div>
+  `;
+
+  host.querySelectorAll("[data-track-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const trackId = btn.getAttribute("data-track-id");
+      if (window.DIA_GAMIFY) window.DIA_GAMIFY.setActiveTrack(trackId);
+      refreshLmsProgress("home");
+    });
+  });
+
+  host.querySelectorAll("[data-dashboard-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const sectionId = btn.getAttribute("data-dashboard-section");
+      showSection(sectionId);
+    });
+  });
+}
+
 function buildHome() {
+  buildDashboard();
   const grid = document.getElementById("section-grid");
   const G = window.DIA_GAMIFY;
-  const prog = G ? G.load() : null;
+  const prog = G ? G.load() : getProgressState();
+  const activeTrack = getActiveTrack();
   grid.innerHTML = sections
     .map((s) => {
-      const passed = prog && prog.quiz[s.id] && prog.quiz[s.id].passed;
-      const cls = passed ? " section-card--cleared" : "";
-      const star = passed
-        ? '<span class="section-card__star" title="Checkpoint cleared">★</span>'
+      const status = sectionStatus(s.id, prog);
+      const meta = sectionMeta(s);
+      const inPath = sectionMatchesTrack(s, activeTrack);
+      const cls = [
+        status.completed ? "section-card--cleared" : "",
+        inPath ? "section-card--in-path" : "section-card--supporting",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const star = status.completed
+        ? '<span class="section-card__star" title="Module complete">✓</span>'
         : "";
       return `
-    <button type="button" class="section-card${cls}" data-section="${s.id}" aria-label="Open section ${s.num}: ${escapeHtml(s.title)}">
+    <button type="button" class="section-card ${cls}" data-section="${s.id}" aria-label="Open section ${s.num}: ${escapeHtml(s.title)}">
       ${star}
       <span class="section-card__num">Section ${s.num}</span>
       <span class="section-card__title">${escapeHtml(s.title)}</span>
+      <span class="section-card__meta">${escapeHtml(meta.duration)} · ${escapeHtml(status.label)}${inPath ? " · In path" : ""}</span>
       <p class="section-card__desc">${escapeHtml(s.short)}</p>
     </button>
   `;
@@ -387,34 +695,148 @@ function buildHome() {
 }
 
 window.refreshHomeQuizStars = function refreshHomeQuizStars() {
-  buildHome();
+  refreshLmsProgress();
 };
+
+function courseOutlineHtml(activeSectionId) {
+  const st = getProgressState();
+  const trackId = getActiveTrack();
+  let track = getTrackById(trackId);
+  let path = sectionsForTrack(trackId);
+  if (!path.some((section) => section.id === activeSectionId)) {
+    track = LEARNING_TRACKS[0];
+    path = sections;
+  }
+  const items = path
+    .map((section) => {
+      const status = sectionStatus(section.id, st);
+      const active = section.id === activeSectionId;
+      return `
+        <li>
+          <button type="button" class="course-outline__item ${status.className}${active ? " is-active" : ""}" data-outline-section="${section.id}">
+            <span class="course-outline__num">${section.num}</span>
+            <span class="course-outline__main">
+              <span class="course-outline__title">${escapeHtml(section.title)}</span>
+              <span class="course-outline__status">${escapeHtml(status.label)}</span>
+            </span>
+          </button>
+        </li>
+      `;
+    })
+    .join("");
+
+  return `
+    <aside class="course-outline" aria-label="Course outline">
+      <div class="course-outline__header">
+        <p>Learning path</p>
+        <h3>${escapeHtml(track.label)}</h3>
+      </div>
+      <ol class="course-outline__list">
+        ${items}
+      </ol>
+    </aside>
+  `;
+}
+
+function completionPanelHtml(section) {
+  const st = getProgressState();
+  const status = sectionStatus(section.id, st);
+  const quiz = st.quiz && st.quiz[section.id];
+  const quizTotal =
+    window.DIA_GAMIFY &&
+    window.DIA_GAMIFY.QUIZZES &&
+    window.DIA_GAMIFY.QUIZZES[section.id]
+      ? window.DIA_GAMIFY.QUIZZES[section.id].questions.length
+      : 3;
+  const bestScore =
+    quiz && typeof quiz.score === "number" ? `${quiz.score}/${quizTotal}` : "Passed";
+  const next = adjacentSections(section.id).next;
+  if (status.completed) {
+    return `
+      <section class="completion-panel completion-panel--done" aria-label="Module completion">
+        <div>
+          <p class="completion-panel__label">Module complete</p>
+          <h3>Checkpoint cleared</h3>
+          <p>Best checkpoint score: ${bestScore}.</p>
+        </div>
+        ${
+          next
+            ? `<button type="button" class="dashboard-secondary" data-nav-section="${next.id}">Next: ${escapeHtml(next.title)}</button>`
+            : `<span class="completion-panel__done-note">Path complete</span>`
+        }
+      </section>
+    `;
+  }
+
+  return `
+    <section class="completion-panel" aria-label="Module completion">
+      <div>
+        <p class="completion-panel__label">${status.opened ? "In progress" : "Not started"}</p>
+        <h3>Complete this module</h3>
+        <p>Pass the checkpoint with at least 66% to complete the module and earn the badge.</p>
+      </div>
+      <button type="button" class="btn-quiz" data-quiz-section="${section.id}">Take checkpoint</button>
+    </section>
+  `;
+}
+
+function sectionNavHtml(sectionId) {
+  const adjacent = adjacentSections(sectionId);
+  return `
+    <nav class="section-nav" aria-label="Module navigation">
+      ${
+        adjacent.previous
+          ? `<button type="button" class="section-nav__btn" data-nav-section="${adjacent.previous.id}">Previous: ${escapeHtml(adjacent.previous.title)}</button>`
+          : `<span class="section-nav__placeholder">Start of path</span>`
+      }
+      ${
+        adjacent.next
+          ? `<button type="button" class="section-nav__btn section-nav__btn--primary" data-nav-section="${adjacent.next.id}">Next: ${escapeHtml(adjacent.next.title)}</button>`
+          : `<span class="section-nav__placeholder">End of path</span>`
+      }
+    </nav>
+  `;
+}
 
 function buildSectionPages() {
   const host = document.getElementById("section-pages");
   const G = window.DIA_GAMIFY;
+  const st = getProgressState();
   host.innerHTML = sections
     .map((s) => {
       const qs = G ? G.quizStatus(s.id) : { label: "Checkpoint quiz", passed: false };
+      const status = sectionStatus(s.id, st);
+      const meta = sectionMeta(s);
       return `
     <div class="view" id="view-${s.id}" tabindex="-1">
       <div class="back-bar">
         <button type="button" class="btn-back" data-nav="home">← Back to all sections</button>
       </div>
-      <header class="section-page__header">
-        <p class="section-page__label">Section ${s.num} of 12</p>
-        <h2>${escapeHtml(s.title)}</h2>
-        <p class="section-page__deck">${escapeHtml(s.short)}</p>
-      </header>
-      <div class="section-playbar">
-        <button type="button" class="btn-quiz" data-quiz-section="${s.id}">${escapeHtml(qs.label)}</button>
-        <p class="section-playbar__hint">
-          <strong>Gamify:</strong> Pass with ≥66% correct to earn XP and a section badge. You also get <strong>+5 XP</strong> the first time you open each section.
-        </p>
+      <div class="section-page-shell">
+        ${courseOutlineHtml(s.id)}
+        <article class="section-page__content">
+          <header class="section-page__header">
+            <p class="section-page__label">Section ${s.num} of 12</p>
+            <h2>${escapeHtml(s.title)}</h2>
+            <p class="section-page__deck">${escapeHtml(s.short)}</p>
+            <div class="section-page__meta">
+              <span>${escapeHtml(meta.duration)}</span>
+              <span class="${status.className}">${escapeHtml(status.label)}</span>
+            </div>
+          </header>
+          <div class="section-playbar">
+            <button type="button" class="btn-quiz" data-quiz-section="${s.id}">${escapeHtml(qs.label)}</button>
+            <p class="section-playbar__hint">
+              Complete the module by passing the checkpoint. First opens still earn <strong>+5 XP</strong>; checkpoint XP is capped after completion.
+            </p>
+          </div>
+          ${linkifyDeckSlides(s.body)}
+          ${deckTablesHtml(s.id)}
+          ${renderRepo(s.repo)}
+          ${completionPanelHtml(s)}
+          ${sectionNavHtml(s.id)}
+        </article>
       </div>
-      ${linkifyDeckSlides(s.body)}
-      ${deckTablesHtml(s.id)}
-      ${renderRepo(s.repo)}
     </div>
   `;
     })
@@ -424,33 +846,57 @@ function buildSectionPages() {
     btn.addEventListener("click", () => showView("home"));
   });
 
-  host.querySelectorAll(".btn-quiz").forEach((btn) => {
+  host.querySelectorAll("[data-quiz-section]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const sid = btn.getAttribute("data-quiz-section");
       if (window.DIA_GAMIFY) window.DIA_GAMIFY.openQuiz(sid);
     });
   });
+
+  host.querySelectorAll("[data-outline-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      showSection(btn.getAttribute("data-outline-section"));
+    });
+  });
+
+  host.querySelectorAll("[data-nav-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      showSection(btn.getAttribute("data-nav-section"));
+    });
+  });
 }
 
 window.refreshSectionQuizButtons = function refreshSectionQuizButtons() {
-  const G = window.DIA_GAMIFY;
-  if (!G) return;
-  document.querySelectorAll(".btn-quiz").forEach((btn) => {
-    const sid = btn.getAttribute("data-quiz-section");
-    const qs = G.quizStatus(sid);
-    btn.textContent = qs.label;
-  });
+  refreshLmsProgress();
 };
 
+function refreshLmsProgress(preferredView) {
+  const activeEl = document.querySelector(".view.is-active");
+  const currentView = activeEl ? activeEl.id.replace(/^view-/, "") : "home";
+  const nextView = preferredView || currentView || "home";
+  if (window.DIA_GAMIFY) window.DIA_GAMIFY.updateHud();
+  buildHome();
+  buildSectionPages();
+  if (nextView === "home" || sections.some((section) => section.id === nextView)) {
+    showView(nextView);
+  } else {
+    showView("home");
+  }
+}
+
+window.refreshLmsProgress = refreshLmsProgress;
+
 function showSection(id) {
+  if (!sections.some((section) => section.id === id)) return;
   if (window.DIA_GAMIFY) window.DIA_GAMIFY.markSectionOpened(id);
-  showView(id);
+  refreshLmsProgress(id);
 }
 
 function initFromHash() {
   const h = (location.hash || "").replace(/^#/, "");
   if (h && sections.some((s) => s.id === h)) {
-    showView(h);
+    if (window.DIA_GAMIFY) window.DIA_GAMIFY.markSectionOpened(h);
+    refreshLmsProgress(h);
   } else {
     showView("home");
   }

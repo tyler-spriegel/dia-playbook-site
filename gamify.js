@@ -9,20 +9,61 @@ const DIA_GAMIFY = (() => {
     badges: [],
     quiz: {},
     openedSections: [],
+    completedSections: [],
+    sectionOpenedAt: {},
+    sectionCompletedAt: {},
+    activeTrack: "all",
+    lastSection: null,
+    courseStartedAt: null,
+    lastActivityAt: null,
   });
+
+  function normalizeState(state) {
+    const base = defaultState();
+    const next = { ...base, ...(state || {}) };
+    next.badges = Array.isArray(next.badges) ? next.badges : [];
+    next.quiz = next.quiz && typeof next.quiz === "object" ? next.quiz : {};
+    next.openedSections = Array.isArray(next.openedSections)
+      ? next.openedSections
+      : [];
+    next.completedSections = Array.isArray(next.completedSections)
+      ? next.completedSections
+      : [];
+    next.sectionOpenedAt =
+      next.sectionOpenedAt && typeof next.sectionOpenedAt === "object"
+        ? next.sectionOpenedAt
+        : {};
+    next.sectionCompletedAt =
+      next.sectionCompletedAt && typeof next.sectionCompletedAt === "object"
+        ? next.sectionCompletedAt
+        : {};
+
+    Object.keys(next.quiz).forEach((sectionId) => {
+      if (next.quiz[sectionId] && next.quiz[sectionId].passed) {
+        if (!next.completedSections.includes(sectionId)) {
+          next.completedSections.push(sectionId);
+        }
+        if (!next.sectionCompletedAt[sectionId]) {
+          next.sectionCompletedAt[sectionId] = next.quiz[sectionId].at || Date.now();
+        }
+      }
+    });
+
+    return next;
+  }
 
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE);
       if (!raw) return defaultState();
-      return { ...defaultState(), ...JSON.parse(raw) };
+      return normalizeState(JSON.parse(raw));
     } catch {
       return defaultState();
     }
   }
 
   function save(state) {
-    localStorage.setItem(STORAGE, JSON.stringify(state));
+    localStorage.setItem(STORAGE, JSON.stringify(normalizeState(state)));
   }
 
   /** sectionId -> { title, questions: [{ q, choices[], correctIndex, explain }] } */
@@ -494,12 +535,43 @@ const DIA_GAMIFY = (() => {
 
   function markSectionOpened(sectionId) {
     const st = load();
+    const now = Date.now();
+    if (!st.courseStartedAt) st.courseStartedAt = now;
+    st.lastSection = sectionId;
+    st.lastActivityAt = now;
     if (!st.openedSections.includes(sectionId)) {
       st.openedSections.push(sectionId);
+      st.sectionOpenedAt[sectionId] = now;
       st.xp += 5;
-      save(st);
-      updateHud();
     }
+    save(st);
+    updateHud();
+  }
+
+  function markSectionCompleted(sectionId, at) {
+    const st = load();
+    const completedAt = at || Date.now();
+    if (!st.completedSections.includes(sectionId)) {
+      st.completedSections.push(sectionId);
+    }
+    if (!st.sectionCompletedAt[sectionId]) {
+      st.sectionCompletedAt[sectionId] = completedAt;
+    }
+    st.lastSection = sectionId;
+    st.lastActivityAt = completedAt;
+    save(st);
+    updateHud();
+  }
+
+  function setActiveTrack(trackId) {
+    const st = load();
+    st.activeTrack = trackId || "all";
+    st.lastActivityAt = Date.now();
+    save(st);
+  }
+
+  function getActiveTrack() {
+    return load().activeTrack || "all";
   }
 
   function openQuiz(sectionId) {
@@ -546,21 +618,31 @@ const DIA_GAMIFY = (() => {
       const pass = correct >= Math.ceil(quiz.questions.length * 0.66);
       const st = load();
       const prev = st.quiz[sectionId];
+      const now = Date.now();
       let xpGain = 0;
       const alreadyCleared = prev && prev.passed;
+      const cleared = pass || alreadyCleared;
       if (pass && !alreadyCleared) {
         xpGain = 35 + correct * 10;
         st.xp += xpGain;
         if (!st.badges.includes(sectionId)) st.badges.push(sectionId);
       }
+      if (pass && !st.completedSections.includes(sectionId)) {
+        st.completedSections.push(sectionId);
+      }
+      if (pass && !st.sectionCompletedAt[sectionId]) {
+        st.sectionCompletedAt[sectionId] = now;
+      }
+      st.lastSection = sectionId;
+      st.lastActivityAt = now;
       st.quiz[sectionId] = {
-        passed: pass || alreadyCleared,
+        passed: cleared,
         score: Math.max(correct, prev ? prev.score : 0),
-        at: Date.now(),
+        at: now,
       };
       save(st);
-      body.innerHTML = `<div class="quiz-result ${pass ? "quiz-result--pass" : "quiz-result--fail"}">
-        <p><strong>${pass ? "Checkpoint cleared!" : "Keep studying"}</strong> — You got ${correct}/${
+      body.innerHTML = `<div class="quiz-result ${cleared ? "quiz-result--pass" : "quiz-result--fail"}">
+        <p><strong>${pass ? "Checkpoint cleared!" : alreadyCleared ? "Checkpoint already cleared" : "Keep studying"}</strong> — You got ${correct}/${
         quiz.questions.length
       } correct.</p>
         <ul>${quiz.questions
@@ -586,10 +668,11 @@ const DIA_GAMIFY = (() => {
         modal.hidden = true;
         modal.setAttribute("aria-hidden", "true");
         updateHud();
-        if (typeof window.refreshSectionQuizButtons === "function") {
+        if (typeof window.refreshLmsProgress === "function") {
+          window.refreshLmsProgress();
+        } else if (typeof window.refreshSectionQuizButtons === "function") {
           window.refreshSectionQuizButtons();
-        }
-        if (typeof window.refreshHomeQuizStars === "function") {
+        } else if (typeof window.refreshHomeQuizStars === "function") {
           window.refreshHomeQuizStars();
         }
       });
@@ -641,8 +724,11 @@ const DIA_GAMIFY = (() => {
     openQuiz,
     updateHud,
     markSectionOpened,
+    markSectionCompleted,
     quizStatus,
     attachModalClose,
+    setActiveTrack,
+    getActiveTrack,
     QUIZZES,
   };
 })();
